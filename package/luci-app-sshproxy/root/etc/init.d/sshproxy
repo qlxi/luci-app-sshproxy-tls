@@ -1,0 +1,52 @@
+#!/bin/sh /etc/rc.common
+START=90
+STOP=10
+USE_PROCD=1
+
+. /lib/functions.sh
+. /lib/functions/uci.sh
+
+start_service() {
+    uci_foreach "sshproxy" "profile" start_profile
+}
+
+start_profile() {
+    config_get enabled "$1" enabled
+    [ "$enabled" != "1" ] && return
+
+    config_get name "$1" name
+    config_get host "$1" server
+    config_get port "$1" port
+    config_get user "$1" user
+    config_get keyfile "$1" keyfile
+    config_get payload "$1" payload
+    config_get tls "$1" tls
+    config_get remote_socks_port "$1" remote_socks_port
+
+    mkdir -p /var/run/sshproxy
+    logfile="/var/log/sshproxy-${name}.log"
+
+    esc_payload=$(printf "%s" "$payload" | sed -e 's/\\/\\\\/g' -e "s/'/'\\''/g")
+
+    if [ "$tls" = "1" ]; then
+        proxycmd="sh -c 'printf "%s" '\''$esc_payload'\''; exec openssl s_client -quiet -connect %h:%p'"
+    else
+        proxycmd="sh -c 'printf "%s" '\''$esc_payload'\''; exec nc %h %p'"
+    fi
+
+    SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    [ -n "$keyfile" ] && SSH_OPTS="$SSH_OPTS -i $keyfile"
+
+    [ "$remote_socks_port" != "0" ] && SOCKS="-D $remote_socks_port"
+
+    cmd="autossh -M 0 -N $SSH_OPTS -o ProxyCommand=\"$proxycmd\" $SOCKS -p $port $user@$host"
+
+    procd_open_instance
+    procd_set_param command sh -c "$cmd >>$logfile 2>&1"
+    procd_set_param respawn
+    procd_close_instance
+}
+
+stop_service() {
+    killall autossh 2>/dev/null
+}

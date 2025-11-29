@@ -1,0 +1,10 @@
+config profile
+    option name 'default'
+    option enabled '0'
+    option server ''
+    option port '22'
+    option user ''
+    option keyfile ''
+    option payload ''
+    option tls '0'
+    option remote_socks_port '0'
