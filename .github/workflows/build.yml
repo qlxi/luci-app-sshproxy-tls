@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # ← обновлено
 
       - name: Install dependencies
         run: |
@@ -36,13 +36,13 @@ jobs:
           echo 'CONFIG_PACKAGE_luci-app-sshproxy=m' >> .config
           make defconfig
 
-      - name: Compile
+      - name: Compile package
         run: |
           cd openwrt
-          make package/luci-app-sshproxy/compile V=s
+          make package/luci-app-sshproxy/compile -j$(nproc) V=s
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload compiled IPK
+        uses: actions/upload-artifact@v4     # ← обновлено на v4
         with:
           name: luci-app-sshproxy-ipk
           path: openwrt/bin/packages/**/luci-app-sshproxy*.ipk
