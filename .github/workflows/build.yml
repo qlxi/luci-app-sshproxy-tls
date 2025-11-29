@@ -1,0 +1,48 @@
+name: Build luci-app-sshproxy
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev python3 unzip
+
+      - name: Clone OpenWrt
+        run: |
+          git clone https://github.com/openwrt/openwrt.git openwrt
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Copy package
+        run: |
+          mkdir -p openwrt/package/luci-app-sshproxy
+          cp -r package/luci-app-sshproxy/* openwrt/package/luci-app-sshproxy/
+
+      - name: Configure
+        run: |
+          cd openwrt
+          echo 'CONFIG_PACKAGE_luci-app-sshproxy=m' >> .config
+          make defconfig
+
+      - name: Compile
+        run: |
+          cd openwrt
+          make package/luci-app-sshproxy/compile V=s
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: luci-app-sshproxy-ipk
+          path: openwrt/bin/packages/**/luci-app-sshproxy*.ipk
